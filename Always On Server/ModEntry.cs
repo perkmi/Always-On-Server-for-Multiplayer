@@ -930,8 +930,8 @@ namespace Always_On_Server
         /// <param name="e">The event data.</param>
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
-                // lock player chests
-                if (this.Config.lockPlayerChests)
+            // lock player chests
+            if (this.Config.lockPlayerChests)
             {
                 foreach (Farmer farmer in Game1.getOnlineFarmers())
                 {
