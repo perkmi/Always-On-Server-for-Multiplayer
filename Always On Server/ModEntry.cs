@@ -102,7 +102,7 @@ namespace Always_On_Server
             helper.ConsoleCommands.Add("debug_server", "Turns debug mode on/off, lets server run when no players are connected", this.DebugToggle);
 
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
-            helper.Events.GameLoop.Saving += this.OnSaving; // Shipping Menu handler
+            helper.Events.Display.MenuChanged += this.OnMenuChanged; // Shipping Menu handler
             helper.Events.GameLoop.OneSecondUpdateTicked += this.OnOneSecondUpdateTicked; //game tick event handler
             helper.Events.GameLoop.TimeChanged += this.OnTimeChanged; // Time of day change handler
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked; //handles various events that should occur as soon as they are available
@@ -192,6 +192,19 @@ namespace Always_On_Server
             }
         }
 
+        // When the shipping menu is shown, let's skip it
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e)
+        {
+            if (IsAutomating)
+            {
+                if (e.NewMenu is ShippingMenu)
+                {
+                    shippingMenuActive = true;
+                    this.Monitor.Log("Skipping shipping menu");
+                    this.Helper.Reflection.GetMethod(Game1.activeClickableMenu, "okClicked").Invoke();
+                }
+            }
+        }
 
         // toggles auto mode on/off with console command "server"
         private void ToggleAutoMode(string command, string[] args)
@@ -308,7 +321,7 @@ namespace Always_On_Server
                     //warp farmer on button press
                     if (Game1.player.currentLocation is FarmHouse)
                     {
-                        Game1.warpFarmer("Farm", 64, 15, false);
+                        Game1.warpFarmer("Farm", this.Config.warpCoordForFarm.X, this.Config.warpCoordForFarm.Y, false);
                     }
                     else
                     {
@@ -777,7 +790,7 @@ namespace Always_On_Server
                     {
                         if (lastFragment == "!sleep")
                         {
-                            if (currentTime >= this.Config.timeOfDayToSleep)
+                            if (currentTime >= this.Config.timeOfDayToSleep || this.Config.allowSleepBeforeTimeOfDayToSleep)
                             {
                                 GoToBed();
                                 this.SendChatMessage("Trying to go to bed.");
@@ -897,7 +910,7 @@ namespace Always_On_Server
                             if (Game1.player.currentLocation is FarmHouse)
                             {
                                 this.SendChatMessage("Warping to Farm.");
-                                Game1.warpFarmer("Farm", 64, 15, false);
+                                Game1.warpFarmer("Farm", this.Config.warpCoordForFarm.X, this.Config.warpCoordForFarm.Y, false);
                             }
                             else
                             {
@@ -1228,7 +1241,7 @@ namespace Always_On_Server
                     //go outside
                     if (currentTime == 640)
                     {
-                        Game1.warpFarmer("Farm", 64, 15, false);
+                        Game1.warpFarmer("Farm", this.Config.warpCoordForFarm.X, this.Config.warpCoordForFarm.Y, false);
                     }
 
                     //get fishing rod (standard spam clicker will get through cutscene)
@@ -1466,6 +1479,14 @@ namespace Always_On_Server
 
         private void GetBedCoordinates()
         {
+            // Check if the user overrides the bed coordinates via the config
+            if (this.Config.warpCoordForBed.X != 0 && this.Config.warpCoordForBed.Y != 0)
+            {
+                bedX = this.Config.warpCoordForBed.X;
+                bedY = this.Config.warpCoordForBed.Y;
+                return;
+            }
+
             int houseUpgradeLevel = Game1.player.HouseUpgradeLevel;
             if (houseUpgradeLevel == 0)
             {
@@ -1492,21 +1513,6 @@ namespace Always_On_Server
 
             this.Helper.Reflection.GetMethod(Game1.currentLocation, "startSleep").Invoke();
             Game1.displayHUD = true;
-        }
-
-        /// <summary>Raised before the game begins writes data to the save file (except the initial save creation).</summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnSaving(object sender, SavingEventArgs e)
-        {
-            // shipping menu "OK" click through code
-            if (IsAutomating)
-            {
-                this.Monitor.Log("This is the Shipping Menu");
-                shippingMenuActive = true;
-                if (Game1.activeClickableMenu is ShippingMenu)
-                    this.Helper.Reflection.GetMethod(Game1.activeClickableMenu, "okClicked").Invoke();
-            }
         }
 
         /// <summary>Raised after the game state is updated (≈60 times per second), regardless of normal SMAPI validation. This event is not thread-safe and may be invoked while game logic is running asynchronously. Changes to game state in this method may crash the game or corrupt an in-progress save. Do not use this event unless you're fully aware of the context in which your code will be run. Mods using this event will trigger a stability warning in the SMAPI console.</summary>
