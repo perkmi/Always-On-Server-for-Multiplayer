@@ -102,7 +102,8 @@ namespace Always_On_Server
             helper.ConsoleCommands.Add("debug_server", "Turns debug mode on/off, lets server run when no players are connected", this.DebugToggle);
 
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
-            helper.Events.Display.MenuChanged += this.OnMenuChanged; // Shipping Menu handler
+            helper.Events.GameLoop.Saving += this.OnSaving; // Shipping Menu handler
+            helper.Events.Display.MenuChanged += this.OnMenuChanged; // Menu handler
             helper.Events.GameLoop.OneSecondUpdateTicked += this.OnOneSecondUpdateTicked; //game tick event handler
             helper.Events.GameLoop.TimeChanged += this.OnTimeChanged; // Time of day change handler
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked; //handles various events that should occur as soon as they are available
@@ -193,6 +194,7 @@ namespace Always_On_Server
         }
 
         // When the shipping menu is shown, let's skip it
+        //TODO: This code never gets hit
         private void OnMenuChanged(object sender, MenuChangedEventArgs e)
         {
             if (IsAutomating)
@@ -203,6 +205,21 @@ namespace Always_On_Server
                     this.Monitor.Log("Skipping shipping menu");
                     this.Helper.Reflection.GetMethod(Game1.activeClickableMenu, "okClicked").Invoke();
                 }
+            }
+        }
+
+        /// <summary>Raised before the game begins writes data to the save file (except the initial save creation).</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event data.</param>
+        private void OnSaving(object sender, SavingEventArgs e)
+        {
+            // shipping menu "OK" click through code
+            if (IsAutomating)
+            {
+                this.Monitor.Log("This is the Shipping Menu");
+                shippingMenuActive = true;
+                if (Game1.activeClickableMenu is ShippingMenu)
+                    this.Helper.Reflection.GetMethod(Game1.activeClickableMenu, "okClicked").Invoke();
             }
         }
 
